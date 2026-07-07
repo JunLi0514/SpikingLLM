@@ -109,6 +109,29 @@ improved performance due to refined hyperparameter tuning.
 | LLaMA-3-8B | 8 | 2 | 6.34 | 72.93 | 54.01 | 77.44 | 80.63 | 
 | LLaMA-3-8B | 8 | 3 | 6.33 | 73.72 | 53.41 | 77.36 | 80.36 |
 
+## Reproduction
+
+We have verified that the provided `retrain_paper.pth` (T=8, grains=3) reproduces the reported results for Llama-2-7B:
+
+| Task | Paper | Reproduced | Δ |
+|------|:-----:|:----------:|:---:|
+| WikiText-2 ↓ | 6.31 | **6.31** | 0.00 |
+| WinoGrande | 70.48 | **70.48** | 0.00 |
+| ARC-C (acc_norm) | 46.25 | **46.59** | +0.34 |
+| ARC-E (acc_norm) | 73.82 | **73.78** | −0.04 |
+| PiQA (acc_norm) | 78.29 | **78.45** | +0.16 |
+| **Average** | 67.21 | **67.33** | +0.12 |
+
+To reproduce, follow the GrainAnalysis pipeline above to obtain the neuron parameters, then run:
+
+```bash
+python phase_main.py \
+  --model_path /path/to/Llama-2-7b \
+  --neuron_path GrainAnalysis/retrain_dir/Llama-2-7B-hf-T-8-grains-3/retrain.pth \
+  --T 8 --wbits 8 --pre_rotate --down_online_had --qk_online_had --set_prefixed_tokens \
+  --eval_ppl --eval_tasks piqa,arc_easy,arc_challenge,winogrande
+```
+
 ## Citation
 
 If you find our work helpful, please consider citing our paper:
