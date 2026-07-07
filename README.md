@@ -1,5 +1,12 @@
 
-# Official implement for **[Distribution-Aware Multi-Granularity Phase Coding: Towards Lower Conversion Error for Spike-Driven Large Language Models](https://openreview.net/pdf/5255ebcb400a21b8843aecd0adfb598bce09871d.pdf)** [ICLR 2026]
+# personal reproduction of Official implement for **[Distribution-Aware Multi-Granularity Phase Coding: Towards Lower Conversion Error for Spike-Driven Large Language Models](https://openreview.net/pdf/5255ebcb400a21b8843aecd0adfb598bce09871d.pdf)** [ICLR 2026]
+
+复现流程
+1 获得activation范围和tau_dict的取值
+2 进入grainanalysis，phase_search 设定T开始搜索给不同T设置什么grain。用到的输入有tau_dict和act。此时会优化 genotype(哪个t用哪个grain)、神经元的3个参数，输出search_arch.pth，记录了哪个t哪个grain；
+3 retrain_decoupled 输入act， tau, search_arc几个pth，重新训练神经元获得retrain.pth
+4 用自己训练获得的神经元eval数据集。
+总之tau=1.0的时候，截至2026.7.7,wikitest2 困惑度3k+。但是tau大部分是min max获得的就没有问题（mlp up_proj output由于多一层comment，所以它们的tau=1.0了，对结果似乎没有影响。）
 
 ![Overview](/main_figure.jpg)
 ## Installation
