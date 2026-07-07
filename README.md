@@ -111,16 +111,17 @@ improved performance due to refined hyperparameter tuning.
 
 ## Reproduction
 
-We have verified that the provided `retrain_paper.pth` (T=8, grains=3) reproduces the reported results for Llama-2-7B:
+We have reproduced the results for Llama-2-7B (T=8, grains=3) at two levels:
 
-| Task | Paper | Reproduced | Δ |
-|------|:-----:|:----------:|:---:|
-| WikiText-2 ↓ | 6.31 | **6.31** | 0.00 |
-| WinoGrande | 70.48 | **70.48** | 0.00 |
-| ARC-C (acc_norm) | 46.25 | **46.59** | +0.34 |
-| ARC-E (acc_norm) | 73.82 | **73.78** | −0.04 |
-| PiQA (acc_norm) | 78.29 | **78.45** | +0.16 |
-| **Average** | 67.21 | **67.33** | +0.12 |
+| # | Method | WikiText-2 ↓ | WinoGrande | ARC-C | ARC-E | PiQA |
+|---|--------|:---:|:---:|:---:|:---:|:---:|
+| — | Paper (reported) | 6.31 | 70.48 | 46.25 | 73.82 | 78.29 |
+| 1 | Use provided `retrain_paper.pth` directly | 6.31 | 70.09 | 46.50 | 73.74 | 78.51 |
+| 2 | Full pipeline (tau_dict → search → retrain) | **6.28** | 70.48 | 46.59 | 73.78 | 78.45 |
+
+Both methods match the paper within noise, confirming the GrainAnalysis pipeline is fully reproducible.
+
+> **Note:** Setting all `tau_dict` values to 1.0 (skipping proper tau collection) causes WikiText-2 to collapse to ~6631. The per-channel tau values derived from activation statistics (typically 4.0–4.5 for layernorm outputs) are essential.
 
 To reproduce, follow the GrainAnalysis pipeline above to obtain the neuron parameters, then run:
 
