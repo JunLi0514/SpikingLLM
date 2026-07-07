@@ -195,8 +195,8 @@ def init_input_neuron(args, model, activation_stat, logger=None, neuron_paramete
                 module.input_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=input_stat, num_grains=num_grains, genotype=genotype, neuron_d=neuron_d, tau=tau, neuron_h=neuron_h, neuron_theta=neuron_theta, spike_one=args.spike_one)
             else:
                 module.input_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=input_stat)
-                # tau = module.input_quantizer.tau
-                # tau_dict[f'{name}.input'] = tau
+                tau = module.input_quantizer.tau
+                tau_dict[f'{name}.input'] = tau
 
             logger.info(f'input activation neuron: set {name}')
         elif isinstance(module,(phaseSnnRMSNorm)):
@@ -210,8 +210,8 @@ def init_input_neuron(args, model, activation_stat, logger=None, neuron_paramete
                 module.output_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=output_stat, num_grains=num_grains, genotype=genotype, neuron_d=neuron_d, tau=tau, neuron_h=neuron_h, neuron_theta=neuron_theta, spike_one=args.spike_one)
             else:
                 module.output_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=output_stat)
-                # tau = module.output_quantizer.tau
-                # tau_dict[f'{name}.output'] = tau
+                tau = module.output_quantizer.tau
+                tau_dict[f'{name}.output'] = tau
 
             logger.info(f'output activation neuron: set {name}')
 
@@ -236,8 +236,8 @@ def init_out_neuron(args, model, activation_stat, logger=None, neuron_parameter=
                 # if ('softmax_Identity' in name):
                 #     tau = module.input_quantizer.tau
                 #     module.input_quantizer.v0 = 0.5 * tau* 2**(-args.T)
-                # tau = module.input_quantizer.tau
-                # tau_dict[f'{name}.input'] = tau
+                tau = module.input_quantizer.tau
+                tau_dict[f'{name}.input'] = tau
 
             logger.info(f'input identity neuron: set {name}')
         elif isinstance(module,phaseSnnIdentity) and not ('softmax_Identity' in name or 'q_Identity' in name):
@@ -254,8 +254,8 @@ def init_out_neuron(args, model, activation_stat, logger=None, neuron_parameter=
                     module.input_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=output_stat, num_grains=num_grains, genotype=genotype, neuron_d=neuron_d, tau=tau, neuron_h=neuron_h, neuron_theta=neuron_theta, spike_one=args.spike_one)
             else:
                 module.input_quantizer = FSNeuron(T=args.T, quantized_shape=quantized_shape, quantized_item_stat=output_stat)
-                # tau = module.input_quantizer.tau
-                # tau_dict[f'{name}.input'] = tau
+                tau = module.input_quantizer.tau
+                tau_dict[f'{name}.input'] = tau
 
             logger.info(f'input identity neuron: set {name}')
         # elif isinstance(module, phaseSnnLinear) and ('up_proj' in name):
@@ -274,6 +274,15 @@ def init_out_neuron(args, model, activation_stat, logger=None, neuron_parameter=
         #     logger.info(f'output activation neuron: set {name}')
 
     # torch.save(tau_dict, '/home/ubuntu/solar/PhaseSNN/GrainAnalysis/activation_dir/Llama-2-7B-hf-8bit/tau_dict.pth')
+
+def save_tau_dict(save_path: str):
+    """Save collected tau_dict after init_input_neuron + init_out_neuron have been called."""
+    if len(tau_dict) == 0:
+        print("[tau_dict] WARNING: tau_dict is empty — did you call init_input_neuron / init_out_neuron first?")
+    import os
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    torch.save(tau_dict, save_path)
+    print(f"[tau_dict] saved {len(tau_dict)} keys → {save_path}")
 
 def set_quant_state(model, act_quant: bool = False):
     for m in model.modules():

@@ -41,7 +41,56 @@ Note: `0,1` specifies the GPU indices (e.g., for A100 GPUs) to be used for the c
 
 The log file will be saved at: `run_scripts/log/*.txt`
 
-## Parameter Configuration  
+## GrainAnalysis: Neuron Optimization Pipeline
+
+The spiking neuron parameters used by `--neuron_path` are obtained through a NAS-style search-and-retrain pipeline under `GrainAnalysis/`. There are four stages:
+
+### Stage 1 — Collect Activation Statistics
+
+Run `phase_main.py` (or `phase_debug.py`) with `--stop_after 3` to stop after the activation-collection stage. This saves per-channel max activation values to `GrainAnalysis/activation_dir/{model_name}/layers/`.
+
+At the same time, `phase/phase_util.py` collects each neuron's initial `tau` (membrane time constant, derived from the activation max) into a module-level `tau_dict`. After the activation collection pass, call `save_tau_dict()` to persist it:
+
+```python
+from phase.phase_util import save_tau_dict
+save_tau_dict("GrainAnalysis/activation_dir/Llama-2-7B-hf/tau_dict.pth")
+```
+
+### Stage 2 — Genotype Search (NAS)
+
+`phase_search.py` searches for the optimal **genotype** — how to allocate *T* time steps across *K* grains. Each grain has its own learnable `(d, h, theta)` parameters, and a DARTS-style architecture weight selects among all valid grain-partition candidates (e.g. for T=8, K=3: `[0,0,1,1,1,2,2,2]`). The search objective is to minimize MSE between the phase-neuron output and the original activation.
+
+```bash
+cd GrainAnalysis
+python phase_search.py --model_name Llama-2-7B-hf --T 8 --num_grains 3
+# Output: arch_dir/{model}-T-{T}-grains-{num_grains}/search_arch.pth
+```
+
+Use `--start` / `--end` to parallelize across GPUs (e.g. layers 0–7 on GPU 0, 8–15 on GPU 1). Intermediate results are saved per-layer under `single-layer/`. After all layers finish, use `--merge_only` to assemble the final dict:
+
+```bash
+python phase_search.py --merge_only --model_name Llama-2-7B-hf --T 8 --num_grains 3
+```
+
+### Stage 3 — Decoupled Retrain
+
+`retrain_decoupled.py` fixes the genotype found in Stage 2 and retrains the neuron parameters `(d, h, theta)` (and `v0` for softmax/silu neurons) with alternating optimization — freeze `d`, train `(h, theta)`; freeze `(h, theta)`, train `d`. This step requires both a `tau_dict.pth` (from Stage 1) and a `search_arch.pth` (from Stage 2):
+
+```bash
+python retrain_decoupled.py --model_name Llama-2-7B-hf --T 8 --num_grains 3 \
+  --tau_dict_path activation_dir/Llama-2-7B-hf/tau_dict.pth \
+  --search_arch_path arch_dir/Llama-2-7B-hf-T-8-grains-3/search_arch.pth \
+  --epoch_inner 5000
+# Output: retrain_dir/{model}-T-{T}-grains-{num_grains}/retrain.pth
+```
+
+### Stage 4 — Evaluate
+
+Feed the `retrain.pth` back into `phase_main.py` via `--neuron_path`:
+
+```bash
+python phase_main.py ... --neuron_path GrainAnalysis/retrain_dir/Llama-2-7B-hf-T-8-grains-3/retrain.pth --T 8
+```  
 > Note: The results presented here reflect the latest optimized configuration. 
 Compared to the values reported in the original paper, current results show 
 improved performance due to refined hyperparameter tuning.
